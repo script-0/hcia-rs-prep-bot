@@ -37,7 +37,9 @@ def extract_status_change(
     the status didn't change.
     """
     status_change = chat_member_update.difference().get("status")
-    old_is_member, new_is_member = chat_member_update.difference().get("is_member", (None, None))
+    old_is_member, new_is_member = chat_member_update.difference().get(
+        "is_member", (None, None)
+    )
 
     if status_change is None:
         return None
@@ -96,15 +98,23 @@ def track_chats(update: Update, context: CallbackContext) -> None:
             logger.info("%s added the bot to the channel %s", cause_name, chat.title)
             context.bot_data.setdefault("channel_ids", set()).add(chat.id)
         elif was_member and not is_member:
-            logger.info("%s removed the bot from the channel %s", cause_name, chat.title)
+            logger.info(
+                "%s removed the bot from the channel %s", cause_name, chat.title
+            )
             context.bot_data.setdefault("channel_ids", set()).discard(chat.id)
 
 
 def show_chats(update: Update, context: CallbackContext) -> None:
     """Shows which chats the bot is in"""
-    user_ids = ", ".join(str(uid) for uid in context.bot_data.setdefault("user_ids", set()))
-    group_ids = ", ".join(str(gid) for gid in context.bot_data.setdefault("group_ids", set()))
-    channel_ids = ", ".join(str(cid) for cid in context.bot_data.setdefault("channel_ids", set()))
+    user_ids = ", ".join(
+        str(uid) for uid in context.bot_data.setdefault("user_ids", set())
+    )
+    group_ids = ", ".join(
+        str(gid) for gid in context.bot_data.setdefault("group_ids", set())
+    )
+    channel_ids = ", ".join(
+        str(cid) for cid in context.bot_data.setdefault("channel_ids", set())
+    )
     text = (
         f"@{context.bot.username} is currently in a conversation with the user IDs {user_ids}."
         f" Moreover it is a member of the groups with IDs {group_ids} "
@@ -138,17 +148,21 @@ def greet_chat_members(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater(os.environ.get('BOT_SECRET'))
+    updater = Updater(os.environ.get("BOT_SECRET"))
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
 
     # Keep track of which chats the bot is in
-    dispatcher.add_handler(ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER))
+    dispatcher.add_handler(
+        ChatMemberHandler(track_chats, ChatMemberHandler.MY_CHAT_MEMBER)
+    )
     dispatcher.add_handler(CommandHandler("show_chats", show_chats))
 
     # Handle members joining/leaving chats.
-    dispatcher.add_handler(ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER))
+    dispatcher.add_handler(
+        ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
+    )
 
     # Start the Bot
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
