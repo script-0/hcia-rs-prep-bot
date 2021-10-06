@@ -9,7 +9,7 @@ Usage:
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
-
+import os
 import logging
 from typing import Tuple, Optional
 
@@ -138,7 +138,7 @@ def greet_chat_members(update: Update, context: CallbackContext) -> None:
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater("TOKEN")
+    updater = Updater(os.environ.get('BOT_SECRET'))
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
