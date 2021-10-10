@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # pylint: disable=C0116,W0613
-# This program is dedicated to the public domain under the CC0 license.
 
-"""
-Basic example for a bot that works with polls. Only 3 people are allowed to interact with each
-poll/quiz the bot generates. The preview command generates a closed poll/quiz, exactly like the
-one the user sends the bot
-"""
 import logging
 import os
 from telegram import (
@@ -42,12 +36,12 @@ from telegram.ext import (
     ChatMemberHandler,
 )
 
+""" Environment variables"""
 
 APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
-
 CLOSED_QUIZ_MSG = (
     "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one"
 )
@@ -61,6 +55,8 @@ NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
 
+
+""" Setup Logging """
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
