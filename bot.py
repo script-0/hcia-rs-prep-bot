@@ -42,6 +42,7 @@ from telegram.ext import (
     ChatMemberHandler,
 )
 
+
 APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
 # Don't forget to set Config Vars on Heroku (settings Section)
@@ -55,6 +56,10 @@ OLD_QUIZ_MSG = (
 )
 QUIZ_PER_SESSION = 5
 SECOND_PER_QUIZ = 20
+NO_PREVIOUS_POLL = -1
+NO_PREVIOUS_POLL_MSG = (
+    "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -133,6 +138,7 @@ def quiz(update: Update, context: CallbackContext) -> None:
         correct_option_id=2,
         # 5s to response
         open_period=SECOND_PER_QUIZ,
+        # close_date=SECOND_PER_QUIZ
     )
     # Save some info about the poll the bot_data for later use in receive_quiz_answer
     payload = {
@@ -159,68 +165,96 @@ def is_answer_correct(update):
     return ret
 
 
-def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
-    # the bot can receive closed poll updates we don't care about
-    if update.poll.is_closed:
-        # update.effective_message.reply_text(CLOSED_QUIZ_MSG)
-        print("Closed update of Poll " + update.poll.id)
-        return
+def get_latest_poll_id(bot_data):
+    tmp = list(bot_data.keys())
+    return tmp[-1] if len(tmp) > 0 else NO_PREVIOUS_POLL
 
+
+def clear_data(bot_data):
+    for i in list(bot_data.keys()):
+        del bot_data[i]
+
+
+def next_question(update: Update, context: CallbackContext) -> None:
+    previous_poll_id = get_latest_poll_id(context.bot_data)
+
+    if previous_poll_id == NO_PREVIOUS_POLL:
+        update.effective_message.reply_text(NO_PREVIOUS_POLL_MSG)
+        return
+    quiz_data = context.bot_data[previous_poll_id]
+    nb_question = quiz_data["nb_question"]
+
+    # Stop current Quiz
     try:
+        context.bot.stop_poll(quiz_data["chat_id"], quiz_data["message_id"])
+    except Exception:
+        pass
+
+    if (nb_question + 1) < QUIZ_PER_SESSION:
+        quiz_data["nb_question"] = quiz_data["nb_question"] + 1
+        # Send Another quiz
+        questions = ["1", "2", "4", "20"]
+        message = context.bot.send_poll(
+            chat_id=quiz_data["chat_id"],
+            question="How many eggs do you need for a cake? - "
+            + str(nb_question % QUIZ_PER_SESSION),
+            options=questions,
+            type=Poll.QUIZ,
+            correct_option_id=(nb_question % QUIZ_PER_SESSION),
+            open_period=SECOND_PER_QUIZ,
+        )
+        # Save some info about the poll the bot_data for later use in receive_quiz_answer\
+        quiz_data["message_id"] = message.message_id
+        payload = {message.poll.id: quiz_data}
+        context.bot_data.update(payload)
+    else:
+        if quiz_data["marks"] >= 0.8 * QUIZ_PER_SESSION:
+            context.bot.send_message(
+                quiz_data["chat_id"],
+                "WHOOWW, Great Work ! You got "
+                + str(quiz_data["marks"])
+                + " over "
+                + str(QUIZ_PER_SESSION)
+                + " -> "
+                + str(round(quiz_data["marks"] * 100 / QUIZ_PER_SESSION))
+                + "%",
+            )
+        else:
+            context.bot.send_message(
+                quiz_data["chat_id"],
+                "Sorry, Need more work ! You got "
+                + str(quiz_data["marks"])
+                + " over "
+                + str(QUIZ_PER_SESSION)
+                + " -> "
+                + str(round(quiz_data["marks"] * 100 / QUIZ_PER_SESSION))
+                + "%",
+            )
+        clear_data(context.bot_data)
+
+
+def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
+    """Respond after quiz user response"""
+    try:
+        # if not previous context data found , ignore
+        if len(list(context.bot_data.keys())) <= 0:
+            return
+        # When the poll is closed after respond , ignore
+        if update.poll.is_closed and (
+            update.poll.id != list(context.bot_data.keys())[-1]
+        ):
+            return
+
+        # calcul les points
         quiz_data = context.bot_data[update.poll.id]
         mark = is_answer_correct(update=update)
         quiz_data["marks"] += 1 if mark else 0
-        nb_question = quiz_data["nb_question"]
-        # Stop current Quiz
-        context.bot.stop_poll(quiz_data["chat_id"], quiz_data["message_id"])
-        # Reply
-        print(
-            "Quiz : "
-            + str(quiz_data["nb_question"])
-            + " -> "
-            + str(round(quiz_data["marks"] * 100 / QUIZ_PER_SESSION))
-        )
-        if (nb_question + 1) < QUIZ_PER_SESSION:
-            quiz_data["nb_question"] = quiz_data["nb_question"] + 1
-            # Send Another quiz
-            questions = ["1", "2", "4", "20"]
-            message = context.bot.send_poll(
-                chat_id=quiz_data["chat_id"],
-                question="How many eggs do you need for a cake? - "
-                + str(nb_question % QUIZ_PER_SESSION),
-                options=questions,
-                type=Poll.QUIZ,
-                correct_option_id=(nb_question % QUIZ_PER_SESSION),
-                # 5s to response
-                open_period=SECOND_PER_QUIZ,
-            )
-            # Save some info about the poll the bot_data for later use in receive_quiz_answer\
-            quiz_data["message_id"] = message.message_id
-            payload = {message.poll.id: quiz_data}
-            context.bot_data.update(payload)
-        else:
-            if quiz_data["marks"] > 0.8 * QUIZ_PER_SESSION:
-                context.bot.send_message(
-                    quiz_data["chat_id"],
-                    "WHOOWW, Great Work ! You got "
-                    + str(quiz_data["marks"])
-                    + " over "
-                    + str(QUIZ_PER_SESSION)
-                    + " -> "
-                    + str(round(quiz_data["marks"] * 100 / QUIZ_PER_SESSION))
-                    + "%",
-                )
-            else:
-                context.bot.send_message(
-                    quiz_data["chat_id"],
-                    "Sorry, Need more work ! You got "
-                    + str(quiz_data["marks"])
-                    + " over "
-                    + str(QUIZ_PER_SESSION)
-                    + " -> "
-                    + str(round(quiz_data["marks"] * 100 / QUIZ_PER_SESSION))
-                    + "%",
-                )
+        payload = {update.poll.id: quiz_data}
+        context.bot_data.update(payload)
+
+        # Load next question
+        next_question(update=update, context=context)
+
     except KeyError:
         # this means this poll answer update is from an old poll, we can't stop it then
         update.effective_message.reply_text(OLD_QUIZ_MSG)
@@ -262,6 +296,7 @@ def main() -> None:
     # Create the Updater and pass it your bot's token.
     updater = Updater(TOKEN)
     dispatcher = updater.dispatcher
+    dispatcher.add_handler(CommandHandler("next", next_question))
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("poll", poll))
     dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
