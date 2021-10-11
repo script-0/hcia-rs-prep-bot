@@ -22,22 +22,27 @@ from telegram.ext import (
     CallbackContext,
 )
 
+from telegram.constants import POLL_QUIZ
 
 from look import track_chats, show_chats, greet_chat_members
 
 # Additionnal imports need for previous functions
 from typing import Tuple, Optional
+
 from telegram import (
     Chat,
     ChatMember,
     ChatMemberUpdated,
 )
+
 from telegram.ext import (
     ChatMemberHandler,
 )
 
-""" Environment variables"""
+from pymongo import MongoClient# this lets us connect to MongoDB
 
+""" Environment variables"""
+mongoClient = MongoClient(os.environ.get("MONGO_DB"))
 APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
 # Don't forget to set Config Vars on Heroku (settings Section)
@@ -48,12 +53,14 @@ CLOSED_QUIZ_MSG = (
 OLD_QUIZ_MSG = (
     "Sorry ! Your Quiz section is too old. Please send /quiz to start a new one"
 )
-QUIZ_PER_SESSION = 5
-SECOND_PER_QUIZ = 20
-NO_PREVIOUS_POLL = -1
 NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
+BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll"
+QUIZ_SAVED = 'All done, Great ! Quiz saved successuf.'
+QUIZ_PER_SESSION = 5
+SECOND_PER_QUIZ = 20
+NO_PREVIOUS_POLL = -1
 
 
 """ Setup Logging """
@@ -271,8 +278,23 @@ def preview(update: Update, context: CallbackContext) -> None:
 def receive_poll(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply to it by a closed poll copying the received poll"""
     actual_poll = update.effective_message.poll
-    # Only need to set the question and options, since all other parameters don't matter for
-    # a closed poll
+    
+    if (actual_poll.type != POLL_QUIZ):
+        # Not a quiz
+        update.effective_message.reply_text(BAD_POLL_TYPE)
+        return
+    
+    # Load quiz
+    quiz = dict()
+    quiz['question'] = actual_poll.question
+    quiz['options'] = []
+    for option in actual_poll.options:
+        quiz["options"].append(option.text)
+    quiz['response_id'] = actual_poll.correct_option_id
+    quiz["explanation"] = actual_poll.explanation
+
+    mongoClient.hcia.quiz.insert_one(quiz)
+
     update.effective_message.reply_poll(
         question=actual_poll.question,
         options=[o.text for o in actual_poll.options],
@@ -281,6 +303,7 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
         reply_markup=ReplyKeyboardRemove(),
     )
 
+    update.effective_message.reply_text(QUIZ_SAVED)
 
 def help_handler(update: Update, context: CallbackContext) -> None:
     """Display a help message"""
@@ -317,7 +340,7 @@ def main() -> None:
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
     # Start the Bot
-    # updater.start_polling()
+
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
     # To reset this, simply pass `allowed_updates=[]
     updater.start_polling(allowed_updates=Update.ALL_TYPES)
