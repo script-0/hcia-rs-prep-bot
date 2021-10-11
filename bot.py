@@ -29,17 +29,11 @@ from look import track_chats, show_chats, greet_chat_members
 # Additionnal imports need for previous functions
 from typing import Tuple, Optional
 
-from telegram import (
-    Chat,
-    ChatMember,
-    ChatMemberUpdated,
-)
+from telegram import Chat, ChatMember, ChatMemberUpdated
 
-from telegram.ext import (
-    ChatMemberHandler,
-)
+from telegram.ext import ChatMemberHandler
 
-from pymongo import MongoClient# this lets us connect to MongoDB
+from pymongo import MongoClient  # this lets us connect to MongoDB
 
 """ Environment variables"""
 mongoClient = MongoClient(os.environ.get("MONGO_DB"))
@@ -57,7 +51,7 @@ NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
 BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll"
-QUIZ_SAVED = 'All done, Great ! Quiz saved successuf.'
+QUIZ_SAVED = "All done, Great ! Quiz saved successuf."
 QUIZ_PER_SESSION = 5
 SECOND_PER_QUIZ = 20
 NO_PREVIOUS_POLL = -1
@@ -278,19 +272,19 @@ def preview(update: Update, context: CallbackContext) -> None:
 def receive_poll(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply to it by a closed poll copying the received poll"""
     actual_poll = update.effective_message.poll
-    
-    if (actual_poll.type != POLL_QUIZ):
+
+    if actual_poll.type != POLL_QUIZ:
         # Not a quiz
         update.effective_message.reply_text(BAD_POLL_TYPE)
         return
-    
+
     # Load quiz
     quiz = dict()
-    quiz['question'] = actual_poll.question
-    quiz['options'] = []
+    quiz["question"] = actual_poll.question
+    quiz["options"] = []
     for option in actual_poll.options:
         quiz["options"].append(option.text)
-    quiz['response_id'] = actual_poll.correct_option_id
+    quiz["response_id"] = actual_poll.correct_option_id
     quiz["explanation"] = actual_poll.explanation
 
     mongoClient.hcia.quiz.insert_one(quiz)
@@ -304,6 +298,7 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
     )
 
     update.effective_message.reply_text(QUIZ_SAVED)
+
 
 def help_handler(update: Update, context: CallbackContext) -> None:
     """Display a help message"""
