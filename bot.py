@@ -41,22 +41,27 @@ APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
+LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.jpg"
+HELLO_MESSAGE = "Hi, Nice to meet you! \n [->] /quiz to start a Q/A session. \n [->] /create to contribute to the Quiz librairy."
 CLOSED_QUIZ_MSG = (
-    "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one"
+    "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one."
 )
 OLD_QUIZ_MSG = (
-    "Sorry ! Your Quiz section is too old. Please send /quiz to start a new one"
+    "Sorry ! Your Quiz section is too old. Please send /quiz to start a new one."
 )
 NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
-BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll"
-QUIZ_SAVED = "All done, Great ! Quiz saved succesfully."
+BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll."
+QUIZ_SAVED = "All done, Great ! Quiz saved succesfully.\nIf your want to edit it or add image just reply to it."
 QUIZ_UPDATE = "All done, Great ! Quiz updated successfully."
+QUIZ_UPDATE_ADD_IMAGE = "All done, Great ! Illustration added successfully."
 QUIZ_PER_SESSION = 5
 SECOND_PER_QUIZ = 20
 NO_PREVIOUS_POLL = -1
-
+INITIALISE_QUIZ_MSG = "Press the above button to initialise Quiz Creation."
+REPLIED_QUIZ_NOT_FOUND = "Sorry, the quiz you want to edit not found. Plz, make sure you selected the right one or try to create another one."
+QUIZ_NOT_SELECTED = "Plz reply to a quiz."
 
 """ Setup Logging """
 logging.basicConfig(
@@ -68,8 +73,8 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
     update.message.reply_photo(
-        photo=open("hcia_rs_files_tmp/logo.jpg", "rb"),
-        caption="Please select /poll to get a Poll, /quiz to get a Quiz or /preview to generate a preview for your poll",
+        photo=open(LOGO_RELATIVE_PATH, "rb"),
+        caption=HELLO_MESSAGE,
     )
 
 
@@ -212,7 +217,7 @@ def init_quiz_creation(update: Update, context: CallbackContext) -> None:
 
     # type=POLL_QUIZ : just QUIZ poll allowed
     button = [[KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]]
-    message = "Press the above button to let the bot initialising Quiz Creation"
+    message = INITIALISE_QUIZ_MSG
     # using one_time_keyboard to hide the keyboard
     update.effective_message.reply_text(
         message, reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True)
@@ -235,8 +240,6 @@ def load_quiz(chat_id: int, msg_id: int, del_id = False) -> dict :
         del quiz["_id"]
     return quiz
 
-REPLIED_QUIZ_NOT_FOUND = "Sorry, the quiz you want to edit not found. Plz, try to create another one."
-QUIZ_NOT_SELECTED = "Plz reply to a quiz."
 
 def create_update_quiz(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply by a closed poll copying the received poll"""
@@ -269,7 +272,7 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
                 photos = [ tmp_photo.file_unique_id for tmp_photo in actual_photo]
                 previous_poll['imgs'] = photos
                 mongoClient.hcia.quiz.replace_one({"_id": previous_poll['_id']} , previous_poll)
-                update.effective_message.reply_text( QUIZ_UPDATE )
+                update.effective_message.reply_text( QUIZ_UPDATE_ADD_IMAGE )
             else:
                 update.effective_message.reply_text(QUIZ_NOT_SELECTED , reply_to_message_id=update.effective_message.message_id)
         except Exception as ex:
