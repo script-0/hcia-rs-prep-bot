@@ -209,9 +209,10 @@ def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
 
 def init_quiz_creation(update: Update, context: CallbackContext) -> None:
     """Ask user to create a quiz and display"""
-    # using this without a type lets the user chooses what he wants (quiz or poll)
-    button = [[KeyboardButton("Create", request_poll=KeyboardButtonPollType())]]
-    message = "Press the button to let the bot initialising Quiz Creation"
+
+    # type=POLL_QUIZ : just QUIZ poll allowed
+    button = [[KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]]
+    message = "Press the above button to let the bot initialising Quiz Creation"
     # using one_time_keyboard to hide the keyboard
     update.effective_message.reply_text(
         message, reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True)
@@ -281,7 +282,7 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
 
     if actual_poll.type != POLL_QUIZ:
         # Not a quiz
-        update.effective_message.reply_text(BAD_POLL_TYPE)
+        update.effective_message.reply_text(BAD_POLL_TYPE, )
         return
 
     # Load quiz
@@ -304,7 +305,7 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
     else :
         # Save quiz
         mongoClient.hcia.quiz.insert_one(quiz)
-        
+
     update.effective_message.reply_text( QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED, reply_markup=ReplyKeyboardRemove())
 
 
