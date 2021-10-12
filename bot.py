@@ -73,8 +73,7 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
     update.message.reply_photo(
-        photo=open(LOGO_RELATIVE_PATH, "rb"),
-        caption=HELLO_MESSAGE,
+        photo=open(LOGO_RELATIVE_PATH, "rb"), caption=HELLO_MESSAGE
     )
 
 
@@ -216,7 +215,9 @@ def init_quiz_creation(update: Update, context: CallbackContext) -> None:
     """Ask user to create a quiz and display"""
 
     # type=POLL_QUIZ : just QUIZ poll allowed
-    button = [[KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]]
+    button = [
+        [KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]
+    ]
     message = INITIALISE_QUIZ_MSG
     # using one_time_keyboard to hide the keyboard
     update.effective_message.reply_text(
@@ -224,19 +225,23 @@ def init_quiz_creation(update: Update, context: CallbackContext) -> None:
     )
 
 
-def load_quiz(chat_id: int, msg_id: int, del_id = False) -> dict :
+def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
     quiz = dict()
     try:
-        #logger.info("[i]-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
-        quiz = mongoClient.hcia.quiz.find_one({
-            "chat_id" : chat_id,
-            "msg_id" : msg_id
-        })
+        # logger.info("[i]-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
+        quiz = mongoClient.hcia.quiz.find_one({"chat_id": chat_id, "msg_id": msg_id})
     except Exception as ex:
-        logger.error("[e]-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
+        logger.error(
+            "[e]-> Exception in load_quiz(...) -> [ chat = "
+            + str(chat_id)
+            + " , msg = "
+            + str(msg_id)
+            + " ] -> "
+            + str(ex)
+        )
         return None
-    
-    if( del_id and ("_id" in list(quiz.keys())) ):
+
+    if del_id and ("_id" in list(quiz.keys())):
         del quiz["_id"]
     return quiz
 
@@ -247,45 +252,65 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
     previous_poll = dict()
 
     replied_poll = update.effective_message.reply_to_message
-    if(replied_poll):
+    if replied_poll:
         # If reply to something
-        if ( replied_poll.poll ):
+        if replied_poll.poll:
             # If reply to a poll == Poll modification
-            previous_poll['msg_id'] = replied_poll.message_id
-            previous_poll['chat_id'] = replied_poll.chat.id
-            previous_poll = load_quiz(chat_id=previous_poll['chat_id'] , msg_id=previous_poll['msg_id'])
-            if( not previous_poll) :
+            previous_poll["msg_id"] = replied_poll.message_id
+            previous_poll["chat_id"] = replied_poll.chat.id
+            previous_poll = load_quiz(
+                chat_id=previous_poll["chat_id"], msg_id=previous_poll["msg_id"]
+            )
+            if not previous_poll:
                 # If error occured on quiz loading
-                logger.error("[e]-> Exception in receive_poll() -> Loaded Poll : \n" + str(previous_poll) )
-                update.effective_message.reply_text(REPLIED_QUIZ_NOT_FOUND, reply_to_message_id=update.effective_message.message_id)
+                logger.error(
+                    "[e]-> Exception in receive_poll() -> Loaded Poll : \n"
+                    + str(previous_poll)
+                )
+                update.effective_message.reply_text(
+                    REPLIED_QUIZ_NOT_FOUND,
+                    reply_to_message_id=update.effective_message.message_id,
+                )
                 return
         else:
-            update.effective_message.reply_text(QUIZ_NOT_SELECTED, reply_to_message_id=update.effective_message.message_id)
+            update.effective_message.reply_text(
+                QUIZ_NOT_SELECTED,
+                reply_to_message_id=update.effective_message.message_id,
+            )
             return
 
     actual_photo = update.effective_message.photo
-    if( actual_photo) :
+    if actual_photo:
         # If an image
         try:
             # If reply to a poll
-            if "msg_id" in list(previous_poll.keys()):         
-                photos = [ tmp_photo.file_unique_id for tmp_photo in actual_photo]
-                previous_poll['imgs'] = photos
-                mongoClient.hcia.quiz.replace_one({"_id": previous_poll['_id']} , previous_poll)
-                update.effective_message.reply_text( QUIZ_UPDATE_ADD_IMAGE )
+            if "msg_id" in list(previous_poll.keys()):
+                photos = [tmp_photo.file_unique_id for tmp_photo in actual_photo]
+                previous_poll["imgs"] = photos
+                mongoClient.hcia.quiz.replace_one(
+                    {"_id": previous_poll["_id"]}, previous_poll
+                )
+                update.effective_message.reply_text(QUIZ_UPDATE_ADD_IMAGE)
             else:
-                update.effective_message.reply_text(QUIZ_NOT_SELECTED , reply_to_message_id=update.effective_message.message_id)
+                update.effective_message.reply_text(
+                    QUIZ_NOT_SELECTED,
+                    reply_to_message_id=update.effective_message.message_id,
+                )
         except Exception as ex:
-            logger.error("[e]-> Saved Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
+            logger.error(
+                "[e]-> Saved Poll : \n"
+                + str(previous_poll)
+                + " ->  Exception : "
+                + str(ex)
+            )
 
         return
-            
-    
+
     actual_poll = update.effective_message.poll
 
     if actual_poll.type != POLL_QUIZ:
         # Not a quiz
-        update.effective_message.reply_text(BAD_POLL_TYPE, )
+        update.effective_message.reply_text(BAD_POLL_TYPE)
         return
 
     # Load quiz
@@ -301,15 +326,18 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
 
     # If reply to a poll
     if "msg_id" in list(previous_poll.keys()):
-        quiz['_id'] = previous_poll['_id']
-        quiz['msg_id'] = previous_poll['msg_id']
-        quiz['chat_id'] = previous_poll['chat_id']
-        mongoClient.hcia.quiz.replace_one({"_id" : quiz["_id"]},quiz)
-    else :
+        quiz["_id"] = previous_poll["_id"]
+        quiz["msg_id"] = previous_poll["msg_id"]
+        quiz["chat_id"] = previous_poll["chat_id"]
+        mongoClient.hcia.quiz.replace_one({"_id": quiz["_id"]}, quiz)
+    else:
         # Save quiz
         mongoClient.hcia.quiz.insert_one(quiz)
 
-    update.effective_message.reply_text( QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED, reply_markup=ReplyKeyboardRemove())
+    update.effective_message.reply_text(
+        QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED,
+        reply_markup=ReplyKeyboardRemove(),
+    )
 
 
 def help_handler(update: Update, context: CallbackContext) -> None:
@@ -327,8 +355,8 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("quiz", quiz))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
     dispatcher.add_handler(CommandHandler("create", init_quiz_creation))
-    dispatcher.add_handler(MessageHandler(Filters.poll, create_update_quiz) )
-    dispatcher.add_handler(MessageHandler(Filters.photo, create_update_quiz) )
+    dispatcher.add_handler(MessageHandler(Filters.poll, create_update_quiz))
+    dispatcher.add_handler(MessageHandler(Filters.photo, create_update_quiz))
     dispatcher.add_handler(CommandHandler("help", help_handler))
 
     # Keep track of which chats the bot is in
@@ -342,9 +370,9 @@ def main() -> None:
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
 
-    #updater.start_webhook(
+    # updater.start_webhook(
     #    listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
-    #)
+    # )
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
