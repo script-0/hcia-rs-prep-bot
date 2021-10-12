@@ -6,6 +6,8 @@
 
 db.sqlite3
 
+run.sh
+
 media/
 
 # Backup files # 

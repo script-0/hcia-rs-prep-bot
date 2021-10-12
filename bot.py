@@ -51,7 +51,8 @@ NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
 BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll"
-QUIZ_SAVED = "All done, Great ! Quiz saved successuf."
+QUIZ_SAVED = "All done, Great ! Quiz saved succesfully."
+QUIZ_UPDATE = "All done, Great ! Quiz updated successfully."
 QUIZ_PER_SESSION = 5
 SECOND_PER_QUIZ = 20
 NO_PREVIOUS_POLL = -1
@@ -269,8 +270,52 @@ def preview(update: Update, context: CallbackContext) -> None:
     )
 
 
+def load_quiz(chat_id: int, msg_id: int, del_id = False) -> dict :
+    quiz = dict()
+    try:
+        #print("-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
+        quiz = mongoClient.hcia.quiz.find_one({
+            "chat_id" : chat_id,
+            "msg_id" : msg_id
+        })
+    except Exception as ex:
+        print("-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
+        return None
+    
+    if( del_id and ("_id" in list(quiz.keys())) ):
+        del quiz["_id"]
+    return quiz
+
 def receive_poll(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply to it by a closed poll copying the received poll"""
+
+    previous_poll = dict()
+    # If reply to a poll == Poll modification
+    try:
+        replied_poll = update.effective_message.reply_to_message
+        previous_poll['msg_id'] = replied_poll.message_id
+        previous_poll['chat_id'] = replied_poll.chat.id
+        previous_poll = load_quiz(chat_id=previous_poll['chat_id'] , msg_id=previous_poll['msg_id'])
+    except Exception as ex:
+        print("Loaded Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
+        pass
+
+    # If an image
+    try:
+        # If reply to a poll
+        print("Loaded Poll : \n" + str(previous_poll))
+        if "msg_id" in list(previous_poll.keys()):
+            actual_photo = update.effective_message.photo
+            photos = [ tmp_photo.file_unique_id for tmp_photo in actual_photo]
+            previous_poll['imgs'] = photos
+            mongoClient.hcia.quiz.replace_one(previous_poll)
+        else:
+            update.effective_message.reply_text('Please select a Poll. Reply to  a poll')
+        return
+    except Exception as ex:
+        print("Saved Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
+        pass
+    
     actual_poll = update.effective_message.poll
 
     if actual_poll.type != POLL_QUIZ:
@@ -286,8 +331,18 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
         quiz["options"].append(option.text)
     quiz["response_id"] = actual_poll.correct_option_id
     quiz["explanation"] = actual_poll.explanation
+    quiz["chat_id"] = update.effective_chat.id
+    quiz["msg_id"] = update.effective_message.message_id
 
-    mongoClient.hcia.quiz.insert_one(quiz)
+    # If reply to a poll
+    if "msg_id" in list(previous_poll.keys()):
+        quiz['_id'] = previous_poll['_id']
+        quiz['msg_id'] = previous_poll['msg_id']
+        quiz['chat_id'] = previous_poll['chat_id']
+        mongoClient.hcia.quiz.replace_one({"_id" : quiz["_id"]},quiz)
+    else :
+        # Save quiz
+        mongoClient.hcia.quiz.insert_one(quiz)
 
     update.effective_message.reply_poll(
         question=actual_poll.question,
@@ -297,7 +352,7 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
         reply_markup=ReplyKeyboardRemove(),
     )
 
-    update.effective_message.reply_text(QUIZ_SAVED)
+    update.effective_message.reply_text( QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED)
 
 
 def help_handler(update: Update, context: CallbackContext) -> None:
@@ -331,9 +386,9 @@ def main() -> None:
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
 
-    updater.start_webhook(
-        listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
-    )
+    #updater.start_webhook(
+    #    listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
+    #)
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
