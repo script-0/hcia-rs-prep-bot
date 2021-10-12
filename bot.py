@@ -273,13 +273,13 @@ def preview(update: Update, context: CallbackContext) -> None:
 def load_quiz(chat_id: int, msg_id: int, del_id = False) -> dict :
     quiz = dict()
     try:
-        #print("-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
+        logger.info("[i]-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
         quiz = mongoClient.hcia.quiz.find_one({
             "chat_id" : chat_id,
             "msg_id" : msg_id
         })
     except Exception as ex:
-        print("-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
+        logger.error("-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
         return None
     
     if( del_id and ("_id" in list(quiz.keys())) ):
