@@ -279,41 +279,52 @@ def load_quiz(chat_id: int, msg_id: int, del_id = False) -> dict :
             "msg_id" : msg_id
         })
     except Exception as ex:
-        logger.error("-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
+        logger.error("[e]-> Exception in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ] -> "+ str(ex))
         return None
     
     if( del_id and ("_id" in list(quiz.keys())) ):
         del quiz["_id"]
     return quiz
 
-def receive_poll(update: Update, context: CallbackContext) -> None:
-    """On receiving polls, reply to it by a closed poll copying the received poll"""
+REPLIED_QUIZ_NOT_FOUND = "Sorry, the quiz you want to edit not found. Plz, try to create another one."
+QUIZ_NOT_SELECTED = "Plz reply to a quiz."
+
+def create_update_poll(update: Update, context: CallbackContext) -> None:
+    """On receiving polls, reply by a closed poll copying the received poll"""
 
     previous_poll = dict()
     # If reply to a poll == Poll modification
     try:
         replied_poll = update.effective_message.reply_to_message
-        previous_poll['msg_id'] = replied_poll.message_id
-        previous_poll['chat_id'] = replied_poll.chat.id
+
+        try:
+            previous_poll['msg_id'] = replied_poll.message_id
+            previous_poll['chat_id'] = replied_poll.chat.id
+        except Exception as e:
+            logger.error("[e]-> Exception in receive_poll() -> Loaded Poll : \n" + str(previous_poll) + " ->  Exception : " + str(e))
+            update.effective_message.reply_text(QUIZ_NOT_SELECTED, reply_to_message_id=update.effective_message.message_id)
+            return
+
         previous_poll = load_quiz(chat_id=previous_poll['chat_id'] , msg_id=previous_poll['msg_id'])
     except Exception as ex:
-        print("Loaded Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
-        pass
-
+        logger.error("[e]-> Exception in receive_poll() -> Loaded Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
+        update.effective_message.reply_text(REPLIED_QUIZ_NOT_FOUND, reply_to_message_id=update.effective_message.message_id)
+        return
+    
     # If an image
     try:
         # If reply to a poll
-        print("Loaded Poll : \n" + str(previous_poll))
         if "msg_id" in list(previous_poll.keys()):
             actual_photo = update.effective_message.photo
             photos = [ tmp_photo.file_unique_id for tmp_photo in actual_photo]
             previous_poll['imgs'] = photos
-            mongoClient.hcia.quiz.replace_one(previous_poll)
+            mongoClient.hcia.quiz.replace_one({"_id": previous_poll['_id']} , previous_poll)
+            update.effective_message.reply_text( QUIZ_UPDATE )
         else:
-            update.effective_message.reply_text('Please select a Poll. Reply to  a poll')
+            update.effective_message.reply_text(QUIZ_NOT_SELECTED , reply_to_message_id=update.effective_message.message_id)
         return
     except Exception as ex:
-        print("Saved Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
+        logger.error("[e]-> Saved Poll : \n" + str(previous_poll) + " ->  Exception : " + str(ex))
         pass
     
     actual_poll = update.effective_message.poll
@@ -357,7 +368,7 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
 
 def help_handler(update: Update, context: CallbackContext) -> None:
     """Display a help message"""
-    update.message.reply_text("Use /quiz, /poll or /preview to test this bot.")
+    update.message.reply_text("Use /quiz, /poll or /create to test this bot.")
 
 
 def main() -> None:
@@ -371,8 +382,9 @@ def main() -> None:
     dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
     dispatcher.add_handler(CommandHandler("quiz", quiz))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    dispatcher.add_handler(CommandHandler("preview", preview))
-    dispatcher.add_handler(MessageHandler(Filters.poll, receive_poll))
+    dispatcher.add_handler(CommandHandler("create", preview))
+    dispatcher.add_handler(MessageHandler(Filters.poll, create_update_poll) )
+    dispatcher.add_handler(MessageHandler(Filters.photo, create_update_poll) )
     dispatcher.add_handler(CommandHandler("help", help_handler))
 
     # Keep track of which chats the bot is in
