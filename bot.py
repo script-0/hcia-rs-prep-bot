@@ -41,21 +41,27 @@ APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
+LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.jpg"
+HELLO_MESSAGE = "Hi, Nice to meet you! \n [->] /quiz to start a Q/A session. \n [->] /create to contribute to the Quiz librairy."
 CLOSED_QUIZ_MSG = (
-    "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one"
+    "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one."
 )
 OLD_QUIZ_MSG = (
-    "Sorry ! Your Quiz section is too old. Please send /quiz to start a new one"
+    "Sorry ! Your Quiz section is too old. Please send /quiz to start a new one."
 )
 NO_PREVIOUS_POLL_MSG = (
     "Sorry ! No previous quiz session found. Plz send /quiz to start a new one."
 )
-BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll"
-QUIZ_SAVED = "All done, Great ! Quiz saved successuf."
+BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz when building your Poll."
+QUIZ_SAVED = "All done, Great ! Quiz saved succesfully.\nIf your want to edit it or add image just reply to it."
+QUIZ_UPDATE = "All done, Great ! Quiz updated successfully."
+QUIZ_UPDATE_ADD_IMAGE = "All done, Great ! Illustration added successfully."
 QUIZ_PER_SESSION = 5
 SECOND_PER_QUIZ = 20
 NO_PREVIOUS_POLL = -1
-
+INITIALISE_QUIZ_MSG = "Press the above button to initialise Quiz Creation."
+REPLIED_QUIZ_NOT_FOUND = "Sorry, the quiz you want to edit not found. Plz, make sure you selected the right one or try to create another one."
+QUIZ_NOT_SELECTED = "Plz reply to a quiz."
 
 """ Setup Logging """
 logging.basicConfig(
@@ -67,61 +73,8 @@ logger = logging.getLogger(__name__)
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
     update.message.reply_photo(
-        photo=open("hcia_rs_files_tmp/logo.png", "rb"),
-        caption="Please select /poll to get a Poll, /quiz to get a Quiz or /preview to generate a preview for your poll",
+        photo=open(LOGO_RELATIVE_PATH, "rb"), caption=HELLO_MESSAGE
     )
-
-
-def poll(update: Update, context: CallbackContext) -> None:
-    """Sends a predefined poll"""
-    questions = ["Good", "Really good", "Fantastic", "Great"]
-    message = context.bot.send_poll(
-        update.effective_chat.id,
-        "How are you?",
-        questions,
-        is_anonymous=False,
-        allows_multiple_answers=True,
-    )
-    # Save some info about the poll the bot_data for later use in receive_poll_answer
-    payload = {
-        message.poll.id: {
-            "questions": questions,
-            "message_id": message.message_id,
-            "chat_id": update.effective_chat.id,
-            "answers": 0,
-        }
-    }
-    context.bot_data.update(payload)
-
-
-def receive_poll_answer(update: Update, context: CallbackContext) -> None:
-    """Summarize a users poll vote"""
-    answer = update.poll_answer
-    poll_id = answer.poll_id
-    try:
-        questions = context.bot_data[poll_id]["questions"]
-    # this means this poll answer update is from an old poll, we can't do our answering then
-    except KeyError:
-        return
-    selected_options = answer.option_ids
-    answer_string = ""
-    for question_id in selected_options:
-        if question_id != selected_options[-1]:
-            answer_string += questions[question_id] + " and "
-        else:
-            answer_string += questions[question_id]
-    context.bot.send_message(
-        context.bot_data[poll_id]["chat_id"],
-        f"{update.effective_user.mention_html()} feels {answer_string}!",
-        parse_mode=ParseMode.HTML,
-    )
-    context.bot_data[poll_id]["answers"] += 1
-    # Close poll after three participants voted
-    if context.bot_data[poll_id]["answers"] == 3:
-        context.bot.stop_poll(
-            context.bot_data[poll_id]["chat_id"],
-            context.bot_data[poll_id]["message_id"],
-        )
 
 
 def quiz(update: Update, context: CallbackContext) -> None:
@@ -162,7 +115,7 @@ def is_answer_correct(update):
     return ret
 
 
-def get_latest_poll_id(bot_data):
+def get_latest_quiz_id(bot_data):
     tmp = list(bot_data.keys())
     return tmp[-1] if len(tmp) > 0 else NO_PREVIOUS_POLL
 
@@ -173,7 +126,7 @@ def clear_data(bot_data):
 
 
 def next_question(update: Update, context: CallbackContext) -> None:
-    previous_poll_id = get_latest_poll_id(context.bot_data)
+    previous_poll_id = get_latest_quiz_id(context.bot_data)
 
     if previous_poll_id == NO_PREVIOUS_POLL:
         update.effective_message.reply_text(NO_PREVIOUS_POLL_MSG)
@@ -258,19 +211,101 @@ def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
         return
 
 
-def preview(update: Update, context: CallbackContext) -> None:
-    """Ask user to create a poll and display a preview of it"""
-    # using this without a type lets the user chooses what he wants (quiz or poll)
-    button = [[KeyboardButton("Press me!", request_poll=KeyboardButtonPollType())]]
-    message = "Press the button to let the bot generate a preview for your poll"
+def init_quiz_creation(update: Update, context: CallbackContext) -> None:
+    """Ask user to create a quiz and display"""
+
+    # type=POLL_QUIZ : just QUIZ poll allowed
+    button = [
+        [KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]
+    ]
+    message = INITIALISE_QUIZ_MSG
     # using one_time_keyboard to hide the keyboard
     update.effective_message.reply_text(
         message, reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True)
     )
 
 
-def receive_poll(update: Update, context: CallbackContext) -> None:
-    """On receiving polls, reply to it by a closed poll copying the received poll"""
+def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
+    quiz = dict()
+    try:
+        # logger.info("[i]-> Search in load_quiz(...) -> [ chat = " + str(chat_id) + " , msg = " + str(msg_id) + " ]")
+        quiz = mongoClient.hcia.quiz.find_one({"chat_id": chat_id, "msg_id": msg_id})
+    except Exception as ex:
+        logger.error(
+            "[e]-> Exception in load_quiz(...) -> [ chat = "
+            + str(chat_id)
+            + " , msg = "
+            + str(msg_id)
+            + " ] -> "
+            + str(ex)
+        )
+        return None
+
+    if del_id and ("_id" in list(quiz.keys())):
+        del quiz["_id"]
+    return quiz
+
+
+def create_update_quiz(update: Update, context: CallbackContext) -> None:
+    """On receiving polls, reply by a closed poll copying the received poll"""
+
+    previous_poll = dict()
+
+    replied_poll = update.effective_message.reply_to_message
+    if replied_poll:
+        # If reply to something
+        if replied_poll.poll:
+            # If reply to a poll == Poll modification
+            previous_poll["msg_id"] = replied_poll.message_id
+            previous_poll["chat_id"] = replied_poll.chat.id
+            previous_poll = load_quiz(
+                chat_id=previous_poll["chat_id"], msg_id=previous_poll["msg_id"]
+            )
+            if not previous_poll:
+                # If error occured on quiz loading
+                logger.error(
+                    "[e]-> Exception in receive_poll() -> Loaded Poll : \n"
+                    + str(previous_poll)
+                )
+                update.effective_message.reply_text(
+                    REPLIED_QUIZ_NOT_FOUND,
+                    reply_to_message_id=update.effective_message.message_id,
+                )
+                return
+        else:
+            update.effective_message.reply_text(
+                QUIZ_NOT_SELECTED,
+                reply_to_message_id=update.effective_message.message_id,
+            )
+            return
+
+    actual_photo = update.effective_message.photo
+    if actual_photo:
+        # If an image
+        try:
+            # If reply to a poll
+            if "msg_id" in list(previous_poll.keys()):
+                photos = [tmp_photo.file_unique_id for tmp_photo in actual_photo]
+                previous_poll["imgs"] = photos
+                mongoClient.hcia.quiz.replace_one(
+                    {"_id": previous_poll["_id"]}, previous_poll
+                )
+                update.effective_message.reply_text(QUIZ_UPDATE_ADD_IMAGE)
+            else:
+                update.effective_message.reply_text(
+                    QUIZ_NOT_SELECTED,
+                    reply_to_message_id=update.effective_message.message_id,
+                )
+        except Exception as ex:
+            logger.error(
+                "[e]-> Saved Poll : \n"
+                + str(previous_poll)
+                + " ->  Exception : "
+                + str(ex)
+            )
+
+        return
+
     actual_poll = update.effective_message.poll
 
     if actual_poll.type != POLL_QUIZ:
@@ -286,23 +321,28 @@ def receive_poll(update: Update, context: CallbackContext) -> None:
         quiz["options"].append(option.text)
     quiz["response_id"] = actual_poll.correct_option_id
     quiz["explanation"] = actual_poll.explanation
+    quiz["chat_id"] = update.effective_chat.id
+    quiz["msg_id"] = update.effective_message.message_id
 
-    mongoClient.hcia.quiz.insert_one(quiz)
+    # If reply to a poll
+    if "msg_id" in list(previous_poll.keys()):
+        quiz["_id"] = previous_poll["_id"]
+        quiz["msg_id"] = previous_poll["msg_id"]
+        quiz["chat_id"] = previous_poll["chat_id"]
+        mongoClient.hcia.quiz.replace_one({"_id": quiz["_id"]}, quiz)
+    else:
+        # Save quiz
+        mongoClient.hcia.quiz.insert_one(quiz)
 
-    update.effective_message.reply_poll(
-        question=actual_poll.question,
-        options=[o.text for o in actual_poll.options],
-        # with is_closed true, the poll/quiz is immediately closed
-        is_closed=True,
+    update.effective_message.reply_text(
+        QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED,
         reply_markup=ReplyKeyboardRemove(),
     )
-
-    update.effective_message.reply_text(QUIZ_SAVED)
 
 
 def help_handler(update: Update, context: CallbackContext) -> None:
     """Display a help message"""
-    update.message.reply_text("Use /quiz, /poll or /preview to test this bot.")
+    update.message.reply_text("Use /quiz, /create to test this bot.")
 
 
 def main() -> None:
@@ -312,12 +352,11 @@ def main() -> None:
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("next", next_question))
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("poll", poll))
-    dispatcher.add_handler(PollAnswerHandler(receive_poll_answer))
     dispatcher.add_handler(CommandHandler("quiz", quiz))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    dispatcher.add_handler(CommandHandler("preview", preview))
-    dispatcher.add_handler(MessageHandler(Filters.poll, receive_poll))
+    dispatcher.add_handler(CommandHandler("create", init_quiz_creation))
+    dispatcher.add_handler(MessageHandler(Filters.poll, create_update_quiz))
+    dispatcher.add_handler(MessageHandler(Filters.photo, create_update_quiz))
     dispatcher.add_handler(CommandHandler("help", help_handler))
 
     # Keep track of which chats the bot is in
