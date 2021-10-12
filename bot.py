@@ -304,16 +304,8 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
     else :
         # Save quiz
         mongoClient.hcia.quiz.insert_one(quiz)
-
-    update.effective_message.reply_poll(
-        question=actual_poll.question,
-        options=[o.text for o in actual_poll.options],
-        # with is_closed true, the poll/quiz is immediately closed
-        is_closed=True,
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-    update.effective_message.reply_text( QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED)
+        
+    update.effective_message.reply_text( QUIZ_UPDATE if "msg_id" in list(previous_poll.keys()) else QUIZ_SAVED, reply_markup=ReplyKeyboardRemove())
 
 
 def help_handler(update: Update, context: CallbackContext) -> None:
