@@ -71,34 +71,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def get_quiz(quiz_to_skip=None):
-    if(quiz_to_skip == None) :
-        quiz = list(mongoClient.hcia.quiz.aggregate([
-            {
-                "$sample" : {
-                    "size" : 1
-                }
-            }
-        ]))[0]
+    if quiz_to_skip == None:
+        quiz = list(mongoClient.hcia.quiz.aggregate([{"$sample": {"size": 1}}]))[0]
         return quiz
-    
-    quiz = list(mongoClient.hcia.quiz.aggregate([
-        { 
-            "$match": {
-                "_id" : {
-                    "$not" : 
-                    {
-                        "$in" : quiz_to_skip
-                    }
-                }
-            }
-        },
-        {
-            "$sample" : {
-                "size" : 1
-            }
-        }
-    ]))[0]
+
+    quiz = list(
+        mongoClient.hcia.quiz.aggregate(
+            [
+                {"$match": {"_id": {"$not": {"$in": quiz_to_skip}}}},
+                {"$sample": {"size": 1}},
+            ]
+        )
+    )[0]
 
     return quiz
 
@@ -125,7 +111,7 @@ def quiz(update: Update, context: CallbackContext) -> None:
         quiz["question"],
         quiz["options"],
         type=Poll.QUIZ,
-        correct_option_id= int(quiz["response_id"]),
+        correct_option_id=int(quiz["response_id"]),
         # 5s to response
         open_period=SECOND_PER_QUIZ,
         # close_date=SECOND_PER_QUIZ
@@ -138,7 +124,7 @@ def quiz(update: Update, context: CallbackContext) -> None:
             "message_id": message.message_id,
             "nb_question": 0,
             "marks": 0,
-            "quiz_to_skip" : [quiz["_id"]]
+            "quiz_to_skip": [quiz["_id"]],
         }
     }
     context.bot_data.update(payload)
@@ -185,8 +171,8 @@ def next_question(update: Update, context: CallbackContext) -> None:
     if (nb_question + 1) < QUIZ_PER_SESSION:
         quiz_data["nb_question"] = quiz_data["nb_question"] + 1
 
-        #Load previous quiz _id. This will be skipped
-        quiz_to_skip =  quiz_data["quiz_to_skip"]
+        # Load previous quiz _id. This will be skipped
+        quiz_to_skip = quiz_data["quiz_to_skip"]
 
         # Load another quiz
         quiz = get_quiz(quiz_to_skip)
@@ -195,20 +181,17 @@ def next_question(update: Update, context: CallbackContext) -> None:
         # Send Another quiz
         message = context.bot.send_poll(
             chat_id=quiz_data["chat_id"],
-            question=quiz["question"]
-            + str(nb_question % QUIZ_PER_SESSION),
+            question=quiz["question"] + str(nb_question % QUIZ_PER_SESSION),
             options=quiz["options"],
             type=Poll.QUIZ,
-            correct_option_id= int(quiz["response_id"]),
+            correct_option_id=int(quiz["response_id"]),
             open_period=SECOND_PER_QUIZ,
         )
         # Save some info about the poll the bot_data for later use in receive_quiz_answer\
         quiz_data["message_id"] = message.message_id
         quiz_data["quiz_to_skip"] = quiz_to_skip
 
-        payload = {
-            message.poll.id: quiz_data
-        }
+        payload = {message.poll.id: quiz_data}
         context.bot_data.update(payload)
     else:
         if quiz_data["marks"] >= 0.8 * QUIZ_PER_SESSION:
