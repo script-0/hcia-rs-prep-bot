@@ -75,6 +75,7 @@ def start(update: Update, context: CallbackContext) -> None:
     update.message.reply_photo(
         photo=open(LOGO_RELATIVE_PATH, "rb"), caption=HELLO_MESSAGE
     )
+    clear_data(context.bot_data)
 
 
 def quiz(update: Update, context: CallbackContext) -> None:
@@ -370,9 +371,9 @@ def main() -> None:
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
 
-    updater.start_webhook(
+    """updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
-    )
+    )"""
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
