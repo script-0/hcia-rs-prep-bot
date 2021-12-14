@@ -22,6 +22,8 @@ from telegram.ext import (
     CallbackContext,
 )
 
+from models.quiz import Quiz
+
 from telegram.constants import POLL_QUIZ
 
 from look import track_chats, show_chats, greet_chat_members
@@ -69,6 +71,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def get_quiz(quiz_to_skip):
+    quiz = mongoClient.hcia.quiz.aggregate([
+        {"_id": {"$not" : {"$in" : quiz_to_skip}}},
+        {"$sample" : {"size" : 1}}
+    ])[0]
+    return quiz
+
 
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
@@ -79,18 +88,25 @@ def start(update: Update, context: CallbackContext) -> None:
 
 
 def quiz(update: Update, context: CallbackContext) -> None:
-    """Send a predefined poll"""
-    questions = ["1", "2", "4", "20"]
 
+    """Initiate Q/A session and send the first quiz"""
+    # Clear al previous Q/A session data
+    clear_data(context.bot_data)
+
+    # Load a quiz
+    quiz = get_quiz([])
+
+    # Send first message
     message = update.effective_message.reply_poll(
-        "How many eggs do you need for a cake?",
-        questions,
+        quiz["question"],
+        quiz["options"],
         type=Poll.QUIZ,
-        correct_option_id=2,
+        correct_option_id= int(quiz["response_id"]),
         # 5s to response
         open_period=SECOND_PER_QUIZ,
         # close_date=SECOND_PER_QUIZ
     )
+    
     # Save some info about the poll the bot_data for later use in receive_quiz_answer
     payload = {
         message.poll.id: {
@@ -98,7 +114,9 @@ def quiz(update: Update, context: CallbackContext) -> None:
             "message_id": message.message_id,
             "nb_question": 0,
             "marks": 0,
-        }
+        },
+        "quiz_to_skip" : [quiz["_id"]]
+
     }
     context.bot_data.update(payload)
 
