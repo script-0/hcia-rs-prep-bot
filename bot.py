@@ -42,10 +42,11 @@ from pymongo import MongoClient  # this lets us connect to MongoDB
 mongoClient = MongoClient(os.environ.get("MONGO_DB"))
 APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
+USER_CODE = os.environ.get("USER_CODE")
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
 LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.jpg"
-HELLO_MESSAGE = "Hi, Nice to meet you! \n [->] /quiz to start a Q/A session. \n [->] /create to contribute to the Quiz librairy."
+HELLO_MESSAGE = "Hi, Nice to meet you! \n\nI'm a opensource HCIA Q/A Bot. \n[->] /quiz to start a Q/A session. Don't worry, it's anonymous. \n[->] /create to contribute to the Quiz librairy.\n\nFound my source code https://github.com/script-0/hcia-rs-prep-bot"
 CLOSED_QUIZ_MSG = (
     "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one."
 )
@@ -90,6 +91,36 @@ def get_quiz(quiz_to_skip=None):
     return quiz
 
 
+def is_answer_correct(update):
+    """determine if user answer is correct"""
+    answers = update.poll.options
+    ret = False
+    counter = 0
+    for answer in answers:
+        if answer.voter_count == 1 and update.poll.correct_option_id == counter:
+            ret = True
+            break
+        counter = counter + 1
+    return ret
+
+
+def get_latest_quiz_id(bot_data):
+    tmp = list(bot_data.keys())
+    return tmp[-1] if len(tmp) > 0 else NO_PREVIOUS_POLL
+
+
+def clear_data(bot_data):
+    for i in list(bot_data.keys()):
+        del bot_data[i]
+
+
+def check_user_code(context: CallbackContext):
+    if "user_code" in context.bot_data.keys():
+        if context.bot_data["user_code"] == "ok":
+            return True
+    return False
+
+
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
     update.message.reply_photo(
@@ -117,7 +148,7 @@ def quiz(update: Update, context: CallbackContext) -> None:
         quiz["options"],
         type=Poll.QUIZ,
         correct_option_id=int(quiz["response_id"]),
-        # 5s to response
+        # 20s to response
         open_period=SECOND_PER_QUIZ,
         # close_date=SECOND_PER_QUIZ
     )
@@ -133,29 +164,6 @@ def quiz(update: Update, context: CallbackContext) -> None:
         }
     }
     context.bot_data.update(payload)
-
-
-def is_answer_correct(update):
-    """determine if user answer is correct"""
-    answers = update.poll.options
-    ret = False
-    counter = 0
-    for answer in answers:
-        if answer.voter_count == 1 and update.poll.correct_option_id == counter:
-            ret = True
-            break
-        counter = counter + 1
-    return ret
-
-
-def get_latest_quiz_id(bot_data):
-    tmp = list(bot_data.keys())
-    return tmp[-1] if len(tmp) > 0 else NO_PREVIOUS_POLL
-
-
-def clear_data(bot_data):
-    for i in list(bot_data.keys()):
-        del bot_data[i]
 
 
 def next_question(update: Update, context: CallbackContext) -> None:
@@ -256,17 +264,40 @@ def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
 
 
 def init_quiz_creation(update: Update, context: CallbackContext) -> None:
-    """Ask user to create a quiz and display"""
+    """Check user code and init quiz creation"""
 
-    # type=POLL_QUIZ : just QUIZ poll allowed
-    button = [
-        [KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]
-    ]
-    message = INITIALISE_QUIZ_MSG
-    # using one_time_keyboard to hide the keyboard
-    update.effective_message.reply_text(
-        message, reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True)
-    )
+    if "user_code" in context.bot_data.keys():
+        code = update.effective_message.text
+        if code == USER_CODE:
+            context.bot_data.update({"user_code": "ok"})
+            button = [
+                [
+                    KeyboardButton(
+                        "Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ)
+                    )
+                ]
+            ]
+            message = INITIALISE_QUIZ_MSG
+            # using one_time_keyboard to hide the keyboard
+            update.effective_message.reply_text(
+                message,
+                reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True),
+            )
+        else:
+            update.effective_message.reply_text(
+                "Incorrect code. Please check it again."
+            )
+
+
+def ask_code(update: Update, context: CallbackContext) -> None:
+    """Ask user code to create a quiz"""
+    if check_user_code(context):
+        init_quiz_creation(update=update, context=context)
+        return
+
+    context.bot_data.update({"user_code": ""})
+    message = " Please, enter the provided user code"
+    update.effective_message.reply_text(message)
 
 
 def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
@@ -290,8 +321,12 @@ def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
     return quiz
 
 
-def create_update_quiz(update: Update, context: CallbackContext) -> None:
+def update_quiz(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply by a closed poll copying the received poll"""
+
+    if not check_user_code(context):
+        ask_code(update, context)
+        return
 
     previous_poll = dict()
 
@@ -398,9 +433,10 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("quiz", quiz))
     dispatcher.add_handler(PollHandler(receive_quiz_answer))
-    dispatcher.add_handler(CommandHandler("create", init_quiz_creation))
-    dispatcher.add_handler(MessageHandler(Filters.poll, create_update_quiz))
-    dispatcher.add_handler(MessageHandler(Filters.photo, create_update_quiz))
+    dispatcher.add_handler(CommandHandler("create", ask_code))
+    dispatcher.add_handler(MessageHandler(Filters.poll, update_quiz))
+    dispatcher.add_handler(MessageHandler(Filters.photo, update_quiz))
+    dispatcher.add_handler(MessageHandler(Filters.text, init_quiz_creation))
     dispatcher.add_handler(CommandHandler("help", help_handler))
 
     # Keep track of which chats the bot is in
@@ -413,9 +449,11 @@ def main() -> None:
     dispatcher.add_handler(
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
+
     updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
+
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
