@@ -7,7 +7,7 @@ A Telegram bot for question/answers relatively to HCIA R&amp;S Certification
 
 - [x] Implement interaction with user
 - [x] User created quizz recording 
-- [ ] Integrate database
+- [x] Integrate database
 - [x] Think about question with image : ADD illustration to Quiz
 - [ ] Remove illustration from QUIZ
 - [ ] Auto complete feature on typing request
