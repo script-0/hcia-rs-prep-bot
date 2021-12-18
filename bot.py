@@ -21,6 +21,7 @@ from telegram.ext import (
     Filters,
     CallbackContext,
 )
+from telegram.files.photosize import PhotoSize
 
 from models.quiz import Quiz
 
@@ -58,7 +59,7 @@ BAD_POLL_TYPE = "Sorry ! Only quiz polls are supported. Make sure to select quiz
 QUIZ_SAVED = "All done, Great ! Quiz saved succesfully.\nIf your want to edit it or add image just reply to it."
 QUIZ_UPDATE = "All done, Great ! Quiz updated successfully."
 QUIZ_UPDATE_ADD_IMAGE = "All done, Great ! Illustration added successfully."
-QUIZ_PER_SESSION = 5
+QUIZ_PER_SESSION = 10
 SECOND_PER_QUIZ = 20
 NO_PREVIOUS_POLL = -1
 INITIALISE_QUIZ_MSG = "Press the above button to initialise Quiz Creation."
@@ -106,7 +107,11 @@ def quiz(update: Update, context: CallbackContext) -> None:
     # Load a quiz
     quiz = get_quiz()
 
-    # Send first message
+    # Send first quiz
+
+    if "imgs" in list(quiz.keys()):
+        update.effective_message.reply_photo(photo=quiz["imgs"][0])
+
     message = update.effective_message.reply_poll(
         quiz["question"],
         quiz["options"],
@@ -179,6 +184,9 @@ def next_question(update: Update, context: CallbackContext) -> None:
         quiz_to_skip.append(quiz["_id"])
 
         # Send Another quiz
+        if "imgs" in list(quiz.keys()):
+            context.bot.send_photo(chat_id=quiz_data["chat_id"], photo=quiz["imgs"][0])
+
         message = context.bot.send_poll(
             chat_id=quiz_data["chat_id"],
             question=quiz["question"] + str(nb_question % QUIZ_PER_SESSION),
@@ -321,7 +329,7 @@ def create_update_quiz(update: Update, context: CallbackContext) -> None:
         try:
             # If reply to a poll
             if "msg_id" in list(previous_poll.keys()):
-                photos = [tmp_photo.file_unique_id for tmp_photo in actual_photo]
+                photos = [tmp_photo.file_id for tmp_photo in actual_photo]
                 previous_poll["imgs"] = photos
                 mongoClient.hcia.quiz.replace_one(
                     {"_id": previous_poll["_id"]}, previous_poll
@@ -405,7 +413,6 @@ def main() -> None:
     dispatcher.add_handler(
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
-
     updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
