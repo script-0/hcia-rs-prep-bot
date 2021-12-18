@@ -90,6 +90,7 @@ def get_quiz(quiz_to_skip=None):
 
     return quiz
 
+
 def is_answer_correct(update):
     """determine if user answer is correct"""
     answers = update.poll.options
@@ -102,19 +103,23 @@ def is_answer_correct(update):
         counter = counter + 1
     return ret
 
+
 def get_latest_quiz_id(bot_data):
     tmp = list(bot_data.keys())
     return tmp[-1] if len(tmp) > 0 else NO_PREVIOUS_POLL
+
 
 def clear_data(bot_data):
     for i in list(bot_data.keys()):
         del bot_data[i]
 
-def check_user_code(context:CallbackContext):
-    if( "user_code" in context.bot_data.keys()):
-        if(context.bot_data["user_code"] == "ok"):
+
+def check_user_code(context: CallbackContext):
+    if "user_code" in context.bot_data.keys():
+        if context.bot_data["user_code"] == "ok":
             return True
     return False
+
 
 def start(update: Update, context: CallbackContext) -> None:
     """Inform user about what this bot can do"""
@@ -122,6 +127,7 @@ def start(update: Update, context: CallbackContext) -> None:
         photo=open(LOGO_RELATIVE_PATH, "rb"), caption=HELLO_MESSAGE
     )
     clear_data(context.bot_data)
+
 
 def quiz(update: Update, context: CallbackContext) -> None:
 
@@ -158,6 +164,7 @@ def quiz(update: Update, context: CallbackContext) -> None:
         }
     }
     context.bot_data.update(payload)
+
 
 def next_question(update: Update, context: CallbackContext) -> None:
     previous_poll_id = get_latest_quiz_id(context.bot_data)
@@ -227,6 +234,7 @@ def next_question(update: Update, context: CallbackContext) -> None:
             )
         clear_data(context.bot_data)
 
+
 def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
     """Respond after quiz user response"""
     try:
@@ -254,35 +262,43 @@ def receive_quiz_answer(update: Update, context: CallbackContext) -> None:
         update.effective_message.reply_text(OLD_QUIZ_MSG)
         return
 
+
 def init_quiz_creation(update: Update, context: CallbackContext) -> None:
     """Check user code and init quiz creation"""
 
-    if( "user_code" in context.bot_data.keys()):
+    if "user_code" in context.bot_data.keys():
         code = update.effective_message.text
         if code == USER_CODE:
-            context.bot_data.update({"user_code" : "ok"})
+            context.bot_data.update({"user_code": "ok"})
             button = [
-                [KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]
+                [
+                    KeyboardButton(
+                        "Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ)
+                    )
+                ]
             ]
             message = INITIALISE_QUIZ_MSG
             # using one_time_keyboard to hide the keyboard
             update.effective_message.reply_text(
-                message, reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True)
+                message,
+                reply_markup=ReplyKeyboardMarkup(button, one_time_keyboard=True),
             )
-        else :
-            update.effective_message.reply_text("Incorrect code. Please check it again.")
+        else:
+            update.effective_message.reply_text(
+                "Incorrect code. Please check it again."
+            )
+
 
 def ask_code(update: Update, context: CallbackContext) -> None:
     """Ask user code to create a quiz"""
-    if( check_user_code(context)):
-        init_quiz_creation(update=update,context=context)
-        return 
-    
-    context.bot_data.update({
-        "user_code" : ""
-    })
+    if check_user_code(context):
+        init_quiz_creation(update=update, context=context)
+        return
+
+    context.bot_data.update({"user_code": ""})
     message = " Please, enter the provided user code"
     update.effective_message.reply_text(message)
+
 
 def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
     quiz = dict()
@@ -304,11 +320,12 @@ def load_quiz(chat_id: int, msg_id: int, del_id=False) -> dict:
         del quiz["_id"]
     return quiz
 
+
 def update_quiz(update: Update, context: CallbackContext) -> None:
     """On receiving polls, reply by a closed poll copying the received poll"""
 
-    if( not check_user_code(context)):
-        ask_code(update,context)
+    if not check_user_code(context):
+        ask_code(update, context)
         return
 
     previous_poll = dict()
@@ -401,6 +418,7 @@ def update_quiz(update: Update, context: CallbackContext) -> None:
         reply_markup=ReplyKeyboardRemove(),
     )
 
+
 def help_handler(update: Update, context: CallbackContext) -> None:
     """Display a help message"""
     update.message.reply_text("Use /quiz, /create to test this bot.")
@@ -431,11 +449,11 @@ def main() -> None:
     dispatcher.add_handler(
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
-    
+
     updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
-    
+
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
