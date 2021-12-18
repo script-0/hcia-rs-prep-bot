@@ -109,11 +109,9 @@ def quiz(update: Update, context: CallbackContext) -> None:
 
     # Send first quiz
 
-    if('imgs' in list(quiz.keys())):
-        update.effective_message.reply_photo(
-            photo=quiz['imgs'][0]
-        )
-    
+    if "imgs" in list(quiz.keys()):
+        update.effective_message.reply_photo(photo=quiz["imgs"][0])
+
     message = update.effective_message.reply_poll(
         quiz["question"],
         quiz["options"],
@@ -186,11 +184,8 @@ def next_question(update: Update, context: CallbackContext) -> None:
         quiz_to_skip.append(quiz["_id"])
 
         # Send Another quiz
-        if('imgs' in list(quiz.keys())):
-            context.bot.send_photo(
-                chat_id=quiz_data["chat_id"],
-                photo=quiz['imgs'][0]
-            )
+        if "imgs" in list(quiz.keys()):
+            context.bot.send_photo(chat_id=quiz_data["chat_id"], photo=quiz["imgs"][0])
 
         message = context.bot.send_poll(
             chat_id=quiz_data["chat_id"],
