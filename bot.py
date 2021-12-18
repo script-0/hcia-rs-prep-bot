@@ -42,10 +42,11 @@ from pymongo import MongoClient  # this lets us connect to MongoDB
 mongoClient = MongoClient(os.environ.get("MONGO_DB"))
 APP_NAME = "https://buzzvb.herokuapp.com/"
 PORT = int(os.environ.get("PORT", "8443"))
+USER_CODE = os.environ.get("USER_CODE")
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
 LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.jpg"
-HELLO_MESSAGE = "Hi, Nice to meet you! \nI'm a opensource HCIA Q/A Bot. \n[->] /quiz to start a Q/A session. Don't worry, it's anonymous. \n[->] /create to contribute to the Quiz librairy.\n\nFound my source code https://github.com/script-0/hcia-rs-prep-bot"
+HELLO_MESSAGE = "Hi, Nice to meet you! \n\nI'm a opensource HCIA Q/A Bot. \n[->] /quiz to start a Q/A session. Don't worry, it's anonymous. \n[->] /create to contribute to the Quiz librairy.\n\nFound my source code https://github.com/script-0/hcia-rs-prep-bot"
 CLOSED_QUIZ_MSG = (
     "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one."
 )
@@ -258,7 +259,7 @@ def init_quiz_creation(update: Update, context: CallbackContext) -> None:
 
     if( "user_code" in context.bot_data.keys()):
         code = update.effective_message.text
-        if code == "OH! Fuck this shit.":
+        if code == USER_CODE:
             context.bot_data.update({"user_code" : "ok"})
             button = [
                 [KeyboardButton("Create", request_poll=KeyboardButtonPollType(type=POLL_QUIZ))]
@@ -430,9 +431,11 @@ def main() -> None:
     dispatcher.add_handler(
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
+    
     updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
+    
     # Start the Bot
 
     # We pass 'allowed_updates' handle *all* updates including `chat_member` updates
