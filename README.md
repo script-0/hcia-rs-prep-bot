@@ -10,7 +10,7 @@ A Telegram bot for question/answers relatively to HCIA R&amp;S Certification
 - [x] Integrate document based database (MongoDB Atlas)
 - [x] Think about question with image : ADD illustration to Quiz
 - [x] Remove illustration from QUIZ
-- [ ] Auto complete feature on typing request
+- [ ] Auto complete feature on typing command
 - [ ] More beautiful report
 - [ ] More useful How to deploy
 - [ ] Code refactoring
