@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # pylint: disable=C0116,W0613
 
+import threading
+import time
 import logging
+
 import os
 from telegram import (
     Poll,
@@ -62,6 +65,7 @@ QUIZ_UPDATE = "All done, Great ! Quiz updated successfully."
 QUIZ_UPDATE_ADD_IMAGE = "All done, Great ! Illustration added successfully."
 QUIZ_PER_SESSION = 10
 SECOND_PER_QUIZ = 20
+SECOND_BEFORE_START = 15
 NO_PREVIOUS_POLL = -1
 INITIALISE_QUIZ_MSG = "Press the above button to initialise Quiz Creation."
 REPLIED_QUIZ_NOT_FOUND = "Sorry, the quiz you want to edit not found. Plz, make sure you selected the right one or try to create another one."
@@ -129,12 +133,22 @@ def start(update: Update, context: CallbackContext) -> None:
     clear_data(context.bot_data)
 
 
-def quiz(update: Update, context: CallbackContext) -> None:
+def starting_quiz(update: Update, context: CallbackContext) -> None:
+    # Countdown
 
-    """Initiate Q/A session and send the first quiz"""
-    # Clear al previous Q/A session data
-    clear_data(context.bot_data)
+    second = SECOND_BEFORE_START
+    msg = update.effective_message.reply_text("-" + str(second))
+    while second >= 0:
+        time.sleep(1)
+        second -= 1
+        context.bot.edit_message_text(
+            message_id=msg.message_id,
+            chat_id=update.message.chat_id,
+            text="-" + str(second),
+        )
 
+    context.bot.deleteMessage(message_id=msg.message_id, chat_id=update.message.chat_id)
+    msg = update.effective_message.reply_text("Let's start!")
     # Load a quiz
     quiz = get_quiz()
 
@@ -164,6 +178,34 @@ def quiz(update: Update, context: CallbackContext) -> None:
         }
     }
     context.bot_data.update(payload)
+
+
+def quiz(update: Update, context: CallbackContext) -> None:
+
+    """Initiate Q/A session and send the first quiz"""
+    # Clear all previous Q/A session data
+    clear_data(context.bot_data)
+
+    #
+    update.effective_message.reply_text(
+        "Before starting, I have a couple of words to say to you:\n[->] This session consist of "
+        + str(QUIZ_PER_SESSION)
+        + " questions\n[->] You will have "
+        + str(SECOND_PER_QUIZ)
+        + " seconds per question.\n[->] If the time allotted to a question expires before you have answered it, enter /next to start the next one.\n\nLet's Go! The first question in "
+        + str(SECOND_BEFORE_START)
+        + " seconds."
+    )
+
+    x = threading.Thread(
+        target=starting_quiz,
+        args=(
+            update,
+            context,
+        ),
+        daemon=True,
+    )
+    x.start()
 
 
 def next_question(update: Update, context: CallbackContext) -> None:
