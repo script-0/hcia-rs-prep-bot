@@ -132,17 +132,22 @@ def start(update: Update, context: CallbackContext) -> None:
     )
     clear_data(context.bot_data)
 
+
 def starting_quiz(update: Update, context: CallbackContext) -> None:
     # Countdown
 
     second = SECOND_BEFORE_START
-    msg = update.effective_message.reply_text("-"+str(second))
-    while(second>=0):
+    msg = update.effective_message.reply_text("-" + str(second))
+    while second >= 0:
         time.sleep(1)
         second -= 1
-        context.bot.edit_message_text(message_id = msg.message_id, chat_id = update.message.chat_id, text="-"+str(second))
+        context.bot.edit_message_text(
+            message_id=msg.message_id,
+            chat_id=update.message.chat_id,
+            text="-" + str(second),
+        )
 
-    context.bot.deleteMessage(message_id = msg.message_id, chat_id = update.message.chat_id)
+    context.bot.deleteMessage(message_id=msg.message_id, chat_id=update.message.chat_id)
     msg = update.effective_message.reply_text("Let's start!")
     # Load a quiz
     quiz = get_quiz()
@@ -174,19 +179,33 @@ def starting_quiz(update: Update, context: CallbackContext) -> None:
     }
     context.bot_data.update(payload)
 
+
 def quiz(update: Update, context: CallbackContext) -> None:
 
     """Initiate Q/A session and send the first quiz"""
     # Clear all previous Q/A session data
     clear_data(context.bot_data)
 
-    # 
-    update.effective_message.reply_text("Before starting, I have a couple of words to say to you:\n[->] This session consist of " + str(QUIZ_PER_SESSION) + " questions\n[->] You will have " + str(SECOND_PER_QUIZ) + " seconds per question.\n[->] If the time allotted to a question expires before you have answered it, enter /next to start the next one.\n\nLet's Go! The first question in " + str(SECOND_BEFORE_START) + " seconds.")
+    #
+    update.effective_message.reply_text(
+        "Before starting, I have a couple of words to say to you:\n[->] This session consist of "
+        + str(QUIZ_PER_SESSION)
+        + " questions\n[->] You will have "
+        + str(SECOND_PER_QUIZ)
+        + " seconds per question.\n[->] If the time allotted to a question expires before you have answered it, enter /next to start the next one.\n\nLet's Go! The first question in "
+        + str(SECOND_BEFORE_START)
+        + " seconds."
+    )
 
-    x = threading.Thread(target=starting_quiz, args=(update,context,), daemon=True)
+    x = threading.Thread(
+        target=starting_quiz,
+        args=(
+            update,
+            context,
+        ),
+        daemon=True,
+    )
     x.start()
-
-    
 
 
 def next_question(update: Update, context: CallbackContext) -> None:
@@ -472,7 +491,7 @@ def main() -> None:
     dispatcher.add_handler(
         ChatMemberHandler(greet_chat_members, ChatMemberHandler.CHAT_MEMBER)
     )
-    
+
     updater.start_webhook(
         listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
     )
