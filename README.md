@@ -48,7 +48,14 @@ A Telegram bot for question/answers relatively to HCIA R&amp;S Certification
     $ export MONGO_DB="YOUR_MONGO_DB_URI" # format: "mongodb+srv://USERNAME:PASSWORD@cluster0.0soh0.mongodb.net/COLLECTION_NAME?retryWrites=true&w=majority"
     $ export USER_CODE="USER_CODE_TO_CREATE_QUIZ"
     ```
-
+- One more step. \
+Localise the following bit of code and comment it.\
+Tips: look at `main()` in `bot.py`
+```python
+    updater.start_webhook(
+        listen="0.0.0.0", port=PORT, url_path=TOKEN, webhook_url=APP_NAME + TOKEN
+    )
+```
 - Oooffs, Run it
     ```bash
     $ python3 bot.py
