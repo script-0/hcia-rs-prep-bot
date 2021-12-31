@@ -48,8 +48,8 @@ PORT = int(os.environ.get("PORT", "8443"))
 USER_CODE = os.environ.get("USER_CODE")
 # Don't forget to set Config Vars on Heroku (settings Section)
 TOKEN = os.environ.get("BOT_SECRET")
-LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.jpg"
-HELLO_MESSAGE = "Hi, Nice to meet you! \n\nI'm a opensource HCIA Q/A Bot. \n[->] /quiz to start a Q/A session. Don't worry, it's anonymous. \n[->] /create to contribute to the Quiz librairy.\n\nFound my source code https://github.com/script-0/hcia-rs-prep-bot"
+LOGO_RELATIVE_PATH = "hcia_rs_files_tmp/logo.png"
+HELLO_MESSAGE = "Hi, Nice to meet you! \n\nI'm a opensource HCIA Q/A Bot. \n[->] /quiz to start a Q/A session. Don't worry, it's anonymous. \n[->] /create to contribute to the Quiz librairy.\n\nFind my source code https://github.com/script-0/hcia-rs-prep-bot"
 CLOSED_QUIZ_MSG = (
     "Sorry ! Your Quiz section is closed. Please send /quiz to start a new one."
 )
