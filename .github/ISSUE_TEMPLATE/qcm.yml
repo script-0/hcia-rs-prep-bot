@@ -1,0 +1,60 @@
+name: MCQ Form
+description: Add a new question to HCIA Prep Bot database.
+labels: ["new-MCQ"]
+title: New MCQ - DO NOT EDIT
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New MCQ Form 
+        
+        ---
+        
+        Thank you for taking the time to add to the HCIA Prep Bot database. To address this as fast as possible, we need some information.
+  - type: input
+    id: question
+    attributes:
+      label: Question
+      description: "Which question the bot will ask ?"
+      placeholder: "HCIA stands for ?"
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Response propositions
+      description: What are the proposed solutions. Please proposition must be seperated by two new lignes. See example below.
+      placeholder: "1. Huawei Certified ICT Associate
+
+      2. Huawei Certified Information Associate
+
+      3. Huawei Certified ICT Associated
+      "
+    validations:
+      required: true
+  - type: input
+    id: correctResponse
+    attributes:
+      label: Correct response
+      description: "What is the correct response index ? ( 0 indexed )"
+      placeholder: "0"
+    validations:
+      required: true
+  - type: dropdown
+    id: isCorrect
+    attributes:
+      label: Is all correct ?
+      description: Have you verified your question, response propostitions and correct response index ?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: verifiedLink
+    attributes:
+      label: Any link to review this MCQ
+      description: "Provide anything which can be used to review you MCQ"
+      placeholder: "https://www.testpreptraining.com/hcia-routing--switching-h12-211-free-practice-test"
+    validations:
+      required: true
