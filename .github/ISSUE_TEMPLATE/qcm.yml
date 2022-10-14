@@ -1,6 +1,6 @@
 name: MCQ Form
 description: Add a new question to HCIA Prep Bot database.
-labels: ["enhancement"]
+labels: ["new-MCQ"]
 title: New MCQ - DO NOT EDIT
 body:
   - type: markdown
