@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '16'
 
-      - uses: script-0/from-github-issue-to-mongodb@v1.0.0-hcia-prep-bot
+      - uses: script-0/from-github-issue-to-mongodb@v1.0.0
         id: issue-to-mongodb
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
