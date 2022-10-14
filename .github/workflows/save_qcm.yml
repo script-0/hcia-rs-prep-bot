@@ -20,9 +20,9 @@ jobs:
       - uses: script-0/from-github-issue-to-mongodb@v1.0.0-hcia-prep-bot
         id: issue-to-mongodb
         env:
-          MONGO_URI: ${{ secrets.MONGO_URI }}
-          MONGO_DB: ${{ secrets.MONGO_DB }}
-          MONGO_COLLECTION: ${{ secrets.MONGO_COLLECTION }}
+          MONGO_URI: ${{ secrets.ISSUE_GITHUB_MONGO_URI }}
+          MONGO_DB: ${{ secrets.ISSUE_GITHUB_MONGO_DB }}
+          MONGO_COLLECTION: ${{ secrets.ISSUE_GITHUB_MONGO_COLLECTION }}
         with:
           template-path: .github/ISSUE_TEMPLATE/qcm.yml
 
