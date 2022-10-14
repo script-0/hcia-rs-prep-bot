@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           token: ${{ secrets.GH_API_TOKEN }}
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '16'
 
