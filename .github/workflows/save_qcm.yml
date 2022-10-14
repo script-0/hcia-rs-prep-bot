@@ -13,7 +13,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           token: ${{ secrets.GH_API_TOKEN }}
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
           node-version: '16'
 
@@ -26,6 +26,6 @@ jobs:
         with:
           template-path: .github/ISSUE_TEMPLATE/qcm.yml
 
-      - uses: peter-evans/close-issue@v1
+      - uses: peter-evans/close-issue@v2
         with:
           comment: Your survey answer was submitted and will be deployed in few minutes.
