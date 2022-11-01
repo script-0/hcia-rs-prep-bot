@@ -1,0 +1,31 @@
+name: Process QCM
+on:
+  issues:
+    types: [ closed ]
+concurrency: 'main'
+jobs:
+  save_qcm:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.title, 'DO NOT EDIT') && contains(github.event.issue.title, 'New MCQ')
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ secrets.GH_API_TOKEN }}
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - uses: script-0/from-github-issue-to-mongodb@v1.0.0-hcia-prep-bot
+        id: issue-to-mongodb
+        env:
+          MONGO_URI: ${{ secrets.ISSUE_GITHUB_MONGO_URI }}
+          MONGO_DB: ${{ secrets.ISSUE_GITHUB_MONGO_DB }}
+          MONGO_COLLECTION: ${{ secrets.ISSUE_GITHUB_MONGO_COLLECTION }}
+        with:
+          template-path: .github/ISSUE_TEMPLATE/qcm.yml
+
+      - uses: peter-evans/close-issue@v2
+        with:
+          comment: Your survey answer was submitted and will be deployed in few minutes.
