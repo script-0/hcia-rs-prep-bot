@@ -26,6 +26,6 @@ jobs:
         with:
           template-path: .github/ISSUE_TEMPLATE/qcm.yml
 
-      - uses: peter-evans/close-issue@v2
+      - uses: peter-evans/close-issue@v3
         with:
           comment: Your survey answer was submitted and will be deployed in few minutes.
